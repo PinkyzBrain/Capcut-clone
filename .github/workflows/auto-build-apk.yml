@@ -1,118 +1,80 @@
 name: Build CapCut APK & Save Project Files
+
 on:
-  branches: [ "main", "master" ]
+  push:
+    branches: [ "main", "master" ]
   workflow_dispatch:
+
 permissions:
   contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
-  steps:
-- name: Checkout repository
-uses: actions/checkout@v4
-- name: Generate Project Files (only if not saved in repo yet)
-run: |
-if [ ! -f "settings.gradle.kts" ]; then
-mkdir -p app/src/main/java/com/example/capcutclone
-cat << 'EOF' > settings.gradle.kts
-pluginManagement {
-repositories {
-google()
-mavenCentral()
-gradlePluginPortal()
-}
-}
-dependencyResolutionManagement {
-repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-repositories {
-google()
-mavenCentral()
-}
-}
-    rootProject.name = "CapCutClone"
-    include(":app")
-    EOF
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    cat << 'EOF' > app/build.gradle.kts
-    plugins {
-        alias(libs.plugins.android.application) apply false
-        alias(libs.plugins.jetbrains.kotlin.android) apply false
-        alias(libs.plugins.jetbrains.kotlin.compose) apply false
-    }
-    EOF
+      - name: Generate Project Files (only if not saved in repo yet)
+        run: |
+          if [ ! -f "settings.gradle.kts" ]; then
+            mkdir -p app/src/main/java/com/example/capcutclone
+            cat << 'EOF' > settings.gradle.kts
+            pluginManagement {
+                repositories {
+                    google()
+                    mavenCentral()
+                    gradlePluginPortal()
+                }
+            }
+            dependencyResolutionManagement {
+                repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+                repositories {
+                    google()
+                    mavenCentral()
+                }
+            }
+            rootProject.name = "CapCutClone"
+            include(":app")
+            EOF
 
-    cat << 'EOF' > gradle.properties
-    org.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8
-    android.useAndroidX=true
-    android.nonTransitiveRClass=true
-    EOF
+            cat << 'EOF' > app/build.gradle.kts
+            plugins {
+                alias(libs.plugins.android.application) apply false
+                alias(libs.plugins.jetbrains.kotlin.android) apply false
+                alias(libs.plugins.jetbrains.kotlin.compose) apply false
+            }
+            EOF
 
-    cat << 'EOF' > app/build.gradle.kts
-    plugins {
-        alias(libs.plugins.android.application)
-        alias(libs.plugins.jetbrains.kotlin.android)
-        alias(libs.plugins.jetbrains.kotlin.compose)
-    }
+            cat << 'EOF' > gradle.properties
+            org.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8
+            android.useAndroidX=true
+            android.nonTransitiveRClass=true
+            EOF
 
-    android {
-        namespace = "com.example.capcutclone"
-        compileSdk = 35
+            cat << 'EOF' > app/build.gradle.kts
+            plugins {
+                alias(libs.plugins.android.application)
+                alias(libs.plugins.jetbrains.kotlin.android)
+                alias(libs.plugins.jetbrains.kotlin.compose)
+            }
 
-        defaultConfig {
-            applicationId = "com.example.capcutclone"
-            minSdk = 26
-            targetSdk = 35
-            versionCode = 2
-            versionName = "1.1"
-        }
+            android {
+                namespace = "com.example.capcutclone"
+                compileSdk = 35
 
-        buildFeatures {
-            compose = true
-        }
+                defaultConfig {
+                    applicationId = "com.example.capcutclone"
+                    minSdk = 26
+                    targetSdk = 35
+                    versionCode = 2
+                    versionName = "1.1"
+                }
 
-        compileOptions {
-            sourceCompatibility = JavaVersion.VERSION_17
-            targetCompatibility = JavaVersion.VERSION_17
-        }
-    }
-    EOF
+                buildFeatures {
+                    compose = true
+                }
+            }
+            EOF
+          fi
 
-EOF
-cat << 'EOF' > app/build.gradle.kts
-plugins {
-alias(libs.plugins.android.application)
-alias(libs.plugins.jetbrains.kotlin.android)
-alias(libs.plugins.jetbrains.kotlin.compose)
-}
-android {
-namespace = "com.example.capcutclone"
-compileSdk = 35
-defaultConfig {
-applicationId = "com.example.capcutclone"
-minSdk = 26
-targetSdk = 35
-versionCode = 2
-versionName = "1.1"
-}
-buildFeatures {
-compose = true
-}
-compileOptions {
-sourceCompatibility = JavaVersion.VERSION_17
-targetCompatibility = JavaVersion.VERSION_17
-}
-}
-EOF
-fi
-Not yet. Grab this next chunk to compile the APK and upload the build artifact:
-- name: Setup Gradle
-uses: gradle/actions/setup-gradle@v4
-with:
-gradle-version: '8.11.1'
-- name: Compile Android Debug APK
-run: ./gradlew assembleDebug --stacktrace
-- name: Upload Ready-to-Install APK
-uses: actions/upload-artifact@v4
-with:
-name: CapCut-Native-APK
-path: app/build/outputs/apk/debug/
