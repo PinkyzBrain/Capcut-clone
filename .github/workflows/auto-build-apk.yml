@@ -1,6 +1,3 @@
-.github/workflows/auto-build-apk.yml
-name: Build CapCut APK and Save Project Files
-
 on:
   push:
     branches: [ "main", "master" ]
