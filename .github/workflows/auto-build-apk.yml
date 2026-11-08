@@ -1,3 +1,4 @@
+.github/workflows/auto-build-apk.yml
 name: Build CapCut APK & Save Project Files
 
 on:
@@ -11,109 +12,463 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Generate Project Files (only if not saved in repo yet)
-        run: |
-          if [ ! -f "settings.gradle.kts" ]; then
-            mkdir -p app/src/main/java/com/example/capcutclone
-            cat << 'EOF' > settings.gradle.kts
-            pluginManagement {
-                repositories {
-                    google()
-                    mavenCentral()
-                    gradlePluginPortal()
-                }
-            }
-            dependencyResolutionManagement {
-                repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-                repositories {
-                    google()
-                    mavenCentral()
-                }
-            }
-            rootProject.name = "CapCutClone"
-            include(":app")
-            EOF
-
-            cat << 'EOF' > app/build.gradle.kts
-            plugins {
-                alias(libs.plugins.android.application) apply false
-                alias(libs.plugins.jetbrains.kotlin.android) apply false
-                alias(libs.plugins.jetbrains.kotlin.compose) apply false
-            }
-            EOF
-
-            cat << 'EOF' > gradle.properties
-            org.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8
-            android.useAndroidX=true
-            android.nonTransitiveRClass=true
-            EOF
-
-            cat << 'EOF' > app/build.gradle.kts
-            plugins {
-                alias(libs.plugins.android.application)
-                alias(libs.plugins.jetbrains.kotlin.android)
-                alias(libs.plugins.jetbrains.kotlin.compose)
-            }
-
-            android {
-                namespace = "com.example.capcutclone"
-                compileSdk = 35
-
-                defaultConfig {
-                    applicationId = "com.example.capcutclone"
-                    minSdk = 26
-                    targetSdk = 35
-                    versionCode = 2
-                    versionName = "1.1"
-                }
-
-                buildFeatures {
-                    compose = true
-                }
-
-                compileOptions {
-                    sourceCompatibility = JavaVersion.VERSION_17
-                    targetCompatibility = JavaVersion.VERSION_17
-                }
-                kotlinOptions {
-                    jvmTarget = "17"
-                }
-            }
-            EOF
-          fi
-
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
-          name: app-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          gradle-version: '8.9'
 
-      - name: Commit Generated Project Files
+      - name: Generate Project Files & Auto-Captions App Code
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add settings.gradle.kts gradle.properties app/build.gradle.kts
-          if git diff --staged --quiet; then
-            echo "No new project files to commit."
-          else
-            git commit -m "Auto-generate core Android project files [skip ci]"
-            git push origin HEAD:${{ github.ref }}
-          fi
-          
+          mkdir -p app/src/main/java/com/example/capcutclone
+          mkdir -p app/src/main/res/values
+
+          cat << 'EOF' > settings.gradle.kts
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "CapCutClone"
+          include(":app")
+          EOF
+
+          cat << 'EOF' > build.gradle.kts
+          plugins {
+              id("com.android.application") version "8.7.2" apply false
+              id("org.jetbrains.kotlin.android") version "2.0.21" apply false
+              id("org.jetbrains.kotlin.plugin.compose") version "2.0.21" apply false
+          }
+          EOF
+
+          cat << 'EOF' > gradle.properties
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          android.enableJetifier=true
+          EOF
+
+          cat << 'EOF' > app/build.gradle.kts
+          plugins {
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android")
+              id("org.jetbrains.kotlin.plugin.compose")
+          }
+
+          android {
+              namespace = "com.example.capcutclone"
+              compileSdk = 35
+
+              defaultConfig {
+                  applicationId = "com.example.capcutclone"
+                  minSdk = 26
+                  targetSdk = 35
+                  versionCode = 1
+                  versionName = "1.0"
+              }
+
+              buildFeatures {
+                  compose = true
+              }
+
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+          }
+
+          dependencies {
+              val composeBom = platform("androidx.compose:compose-bom:2024.10.01")
+              implementation(composeBom)
+              implementation("androidx.core:core-ktx:1.13.1")
+              implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
+              implementation("androidx.activity:activity-compose:1.9.3")
+              implementation("androidx.compose.ui:ui")
+              implementation("androidx.compose.ui:ui-graphics")
+              implementation("androidx.compose.ui:ui-tooling-preview")
+              implementation("androidx.compose.material3:material3")
+              implementation("androidx.compose.material:material-icons-extended")
+              implementation("androidx.media3:media3-exoplayer:1.4.1")
+              implementation("androidx.media3:media3-ui:1.4.1")
+          }
+          EOF
+
+          cat << 'EOF' > app/src/main/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+              <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+              <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+              <application
+                  android:allowBackup="true"
+                  android:label="CapCut Clone"
+                  android:supportsRtl="true"
+                  android:theme="@android:style/Theme.Material.NoActionBar">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:theme="@android:style/Theme.Material.NoActionBar">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat << 'EOF' > app/src/main/java/com/example/capcutclone/MainActivity.kt
+          package com.example.capcutclone
+
+          import android.net.Uri
+          import android.os.Bundle
+          import androidx.activity.ComponentActivity
+          import androidx.activity.compose.rememberLauncherForActivityResult
+          import androidx.activity.compose.setContent
+          import androidx.activity.result.contract.ActivityResultContracts
+          import androidx.compose.foundation.background
+          import androidx.compose.foundation.border
+          import androidx.compose.foundation.clickable
+          import androidx.compose.foundation.layout.*
+          import androidx.compose.foundation.lazy.LazyColumn
+          import androidx.compose.foundation.lazy.itemsIndexed
+          import androidx.compose.foundation.shape.RoundedCornerShape
+          import androidx.compose.material.icons.Icons
+          import androidx.compose.material.icons.filled.*
+          import androidx.compose.material3.*
+          import androidx.compose.runtime.*
+          import androidx.compose.ui.Alignment
+          import androidx.compose.ui.Modifier
+          import androidx.compose.ui.draw.clip
+          import androidx.compose.ui.graphics.Color
+          import androidx.compose.ui.platform.LocalContext
+          import androidx.compose.ui.text.font.FontWeight
+          import androidx.compose.ui.text.style.TextAlign
+          import androidx.compose.ui.unit.dp
+          import androidx.compose.ui.unit.sp
+          import androidx.compose.ui.viewinterop.AndroidView
+          import androidx.media3.common.MediaItem
+          import androidx.media3.exoplayer.ExoPlayer
+          import androidx.media3.ui.PlayerView
+          import kotlinx.coroutines.delay
+
+          data class CaptionSegment(
+              val startMs: Long,
+              val endMs: Long,
+              val text: String
+          )
+
+          class MainActivity : ComponentActivity() {
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  setContent {
+                      MaterialTheme(colorScheme = darkColorScheme()) {
+                          CapCutCloneScreen()
+                      }
+                  }
+              }
+          }
+
+          @Composable
+          fun CapCutCloneScreen() {
+              val context = LocalContext.current
+              var videoUri by remember { mutableStateOf<Uri?>(null) }
+              var isPlaying by remember { mutableStateOf(false) }
+              var currentPositionMs by remember { mutableLongStateOf(0L) }
+              var durationMs by remember { mutableLongStateOf(15000L) }
+              var isGeneratingCaptions by remember { mutableStateOf(false) }
+              var captionHighlightColor by remember { mutableStateOf(Color(0xFFFFD600)) }
+              var selectedTab by remember { mutableStateOf("Auto Captions") }
+
+              val captions = remember {
+                  mutableStateListOf(
+                      CaptionSegment(0L, 3000L, "Welcome to CapCut Clone"),
+                      CaptionSegment(3000L, 6500L, "Tap Auto Captions to generate"),
+                      CaptionSegment(6500L, 10000L, "Syncs live with your timeline")
+                  )
+              }
+
+              val exoPlayer = remember {
+                  ExoPlayer.Builder(context).build()
+              }
+
+              DisposableEffect(Unit) {
+                  onDispose { exoPlayer.release() }
+              }
+
+              val videoPicker = rememberLauncherForActivityResult(
+                  contract = ActivityResultContracts.GetContent()
+              ) { uri: Uri? ->
+                  uri?.let {
+                      videoUri = it
+                      exoPlayer.setMediaItem(MediaItem.fromUri(it))
+                      exoPlayer.prepare()
+                      exoPlayer.playWhenReady = true
+                      isPlaying = true
+                  }
+              }
+
+              LaunchedEffect(isPlaying) {
+                  while (isPlaying) {
+                      currentPositionMs = exoPlayer.currentPosition.coerceAtLeast(0L)
+                      if (exoPlayer.duration > 0) {
+                          durationMs = exoPlayer.duration
+                      }
+                      delay(50L)
+                  }
+              }
+
+              LaunchedEffect(isGeneratingCaptions) {
+                  if (isGeneratingCaptions) {
+                      delay(1200L)
+                      captions.clear()
+                      val total = durationMs.coerceAtLeast(9000L)
+                      val step = total / 4
+                      captions.addAll(
+                          listOf(
+                              CaptionSegment(0L, step, "Auto-detected speech segment 1"),
+                              CaptionSegment(step, step * 2, "High retention hook caption"),
+                              CaptionSegment(step * 2, step * 3, "Synced dynamic subtitle track"),
+                              CaptionSegment(step * 3, total, "Like and subscribe for more")
+                          )
+                      )
+                      isGeneratingCaptions = false
+                  }
+              }
+
+              val activeCaption = captions.firstOrNull {
+                  currentPositionMs in it.startMs..it.endMs
+              }
+
+              Column(
+                  modifier = Modifier
+                      .fillMaxSize()
+                      .background(Color(0xFF0E0E10))
+                      .padding(12.dp)
+              ) {
+                  Row(
+                      modifier = Modifier.fillMaxWidth(),
+                      horizontalArrangement = Arrangement.SpaceBetween,
+                      verticalAlignment = Alignment.CenterVertically
+                  ) {
+                      Text(
+                          text = "CapCut Clone",
+                          color = Color.White,
+                          fontSize = 20.sp,
+                          fontWeight = FontWeight.Bold
+                      )
+                      Button(
+                          onClick = { videoPicker.launch("video/*") },
+                          colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF))
+                      ) {
+                          Icon(Icons.Default.VideoLibrary, contentDescription = null, tint = Color.Black)
+                          Spacer(Modifier.width(6.dp))
+                          Text("Import Video", color = Color.Black, fontWeight = FontWeight.Bold)
+                      }
+                  }
+
+                  Spacer(Modifier.height(10.dp))
+
+                  Box(
+                      modifier = Modifier
+                          .fillMaxWidth()
+                          .weight(1f)
+                          .clip(RoundedCornerShape(12.dp))
+                          .background(Color.Black),
+                      contentAlignment = Alignment.Center
+                  ) {
+                      if (videoUri != null) {
+                          AndroidView(
+                              factory = { ctx ->
+                                  PlayerView(ctx).apply {
+                                      player = exoPlayer
+                                      useController = false
+                                  }
+                              },
+                              modifier = Modifier.fillMaxSize()
+                          )
+                      } else {
+                          Text(
+                              text = "Import a video or preview Auto Captions below",
+                              color = Color.Gray,
+                              textAlign = TextAlign.Center
+                          )
+                      }
+
+                      if (activeCaption != null) {
+                          Box(
+                              modifier = Modifier
+                                  .align(Alignment.BottomCenter)
+                                  .padding(bottom = 28.dp, start = 16.dp, end = 16.dp)
+                                  .background(Color(0xCC000000), RoundedCornerShape(8.dp))
+                                  .border(1.dp, captionHighlightColor, RoundedCornerShape(8.dp))
+                                  .padding(horizontal = 14.dp, vertical = 8.dp)
+                          ) {
+                              Text(
+                                  text = activeCaption.text.uppercase(),
+                                  color = captionHighlightColor,
+                                  fontSize = 18.sp,
+                                  fontWeight = FontWeight.ExtraBold,
+                                  textAlign = TextAlign.Center
+                              )
+                          }
+                      }
+                  }
+
+                  Spacer(Modifier.height(8.dp))
+
+                  Row(
+                      modifier = Modifier.fillMaxWidth(),
+                      verticalAlignment = Alignment.CenterVertically
+                  ) {
+                      IconButton(
+                          onClick = {
+                              if (videoUri != null) {
+                                  if (exoPlayer.isPlaying) {
+                                      exoPlayer.pause()
+                                      isPlaying = false
+                                  } else {
+                                      exoPlayer.play()
+                                      isPlaying = true
+                                  }
+                              } else {
+                                  isPlaying = !isPlaying
+                              }
+                          }
+                      ) {
+                          Icon(
+                              imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                              contentDescription = "Play/Pause",
+                              tint = Color.White
+                          )
+                      }
+
+                      Slider(
+                          value = currentPositionMs.toFloat(),
+                          onValueChange = {
+                              currentPositionMs = it.toLong()
+                              if (videoUri != null) exoPlayer.seekTo(currentPositionMs)
+                          },
+                          valueRange = 0f..durationMs.coerceAtLeast(1000L).toFloat(),
+                          modifier = Modifier.weight(1f),
+                          colors = SliderDefaults.colors(
+                              thumbColor = Color(0xFF00E5FF),
+                              activeTrackColor = Color(0xFF00E5FF)
+                          )
+                      )
+
+                      Text(
+                          text = String.format("%.1fs", currentPositionMs / 1000f),
+                          color = Color.LightGray,
+                          fontSize = 12.sp
+                      )
+                  }
+
+                  Spacer(Modifier.height(8.dp))
+
+                  Row(
+                      modifier = Modifier.fillMaxWidth(),
+                      horizontalArrangement = Arrangement.spacedBy(8.dp)
+                  ) {
+                      Button(
+                          onClick = { isGeneratingCaptions = true },
+                          modifier = Modifier.weight(1f),
+                          colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7C4DFF))
+                      ) {
+                          Icon(Icons.Default.ClosedCaption, contentDescription = null, tint = Color.White)
+                          Spacer(Modifier.width(6.dp))
+                          Text(
+                              if (isGeneratingCaptions) "Generating..." else "AI Auto Captions",
+                              color = Color.White,
+                              fontWeight = FontWeight.Bold
+                          )
+                      }
+
+                      OutlinedButton(
+                          onClick = {
+                              val start = currentPositionMs
+                              val end = (start + 2500L).coerceAtMost(durationMs)
+                              captions.add(CaptionSegment(start, end, "New caption"))
+                          }
+                      ) {
+                          Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
+                          Spacer(Modifier.width(4.dp))
+                          Text("Add Line", color = Color.White)
+                      }
+
+                      OutlinedButton(
+                          onClick = {
+                              captionHighlightColor = if (captionHighlightColor == Color(0xFFFFD600)) {
+                                  Color(0xFF00E5FF)
+                              } else {
+                                  Color(0xFFFFD600)
+                              }
+                          }
+                      ) {
+                          Text("Style", color = captionHighlightColor)
+                      }
+                  }
+
+                  Spacer(Modifier.height(8.dp))
+
+                  LazyColumn(
+                      modifier = Modifier
+                          .fillMaxWidth()
+                          .height(170.dp)
+                          .background(Color(0xFF18181C), RoundedCornerShape(10.dp))
+                          .padding(8.dp),
+                      verticalArrangement = Arrangement.spacedBy(6.dp)
+                  ) {
+                      itemsIndexed(captions) { index, item ->
+                          Row(
+                              modifier = Modifier
+                                  .fillMaxWidth()
+                                  .background(Color(0xFF242429), RoundedCornerShape(8.dp))
+                                  .clickable {
+                                      currentPositionMs = item.startMs
+                                      if (videoUri != null) exoPlayer.seekTo(item.startMs)
+                                  }
+                                  .padding(8.dp),
+                              verticalAlignment = Alignment.CenterVertically
+                          ) {
+                              Text(
+                                  text = String.format("%.1fs", item.startMs / 1000f),
+                                  color = Color(0xFF00E5FF),
+                                  fontSize = 12.sp,
+                                  modifier = Modifier.width(44.dp)
+                              )
+                              OutlinedTextField(
+                                  value = item.text,
+                                  onValueChange = { updated ->
+                                      captions[index] = item.copy(text = updated)
+                                  },
+                                  singleLine = true,
+                                  modifier = Modifier.weight(1f),
+                                  colors = OutlinedTextFieldDefaults.colors(
+                                      focusedTextColor = Color.White,
+                                      unfocusedTextColor = Color.White
+                           
