@@ -7,7 +7,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-      steps:
+  steps:
 - name: Checkout repository
 uses: actions/checkout@v4
 - name: Generate Project Files (only if not saved in repo yet)
