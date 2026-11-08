@@ -1,4 +1,4 @@
-.github/workflows/auto-build-apk.yml concurrency: concurrency: 
+.github/workflows/auto-build-apk.yml
 name: Build CapCut APK and Save Project Files
 
 on:
