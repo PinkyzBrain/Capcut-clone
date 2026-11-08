@@ -468,4 +468,4 @@ jobs:
                                   colors = OutlinedTextFieldDefaults.colors(
                                       focusedTextColor = Color.White,
                                       unfocusedTextColor = Color.White
-                           
+                           use actions upload artifact at v4 with name capcut debug apk and path app build outputs apk debug.
